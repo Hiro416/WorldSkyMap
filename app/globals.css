@@ -39,6 +39,7 @@ button {
 .mapLayer {
   position: fixed;
   inset: 0;
+  filter: grayscale(1) saturate(0) brightness(1.08) contrast(0.86);
 }
 
 .skyFieldCanvas {
@@ -47,9 +48,9 @@ button {
   z-index: 1;
   width: calc(100% + 36px);
   height: calc(100% + 36px);
-  opacity: 0.82;
-  filter: blur(10px) saturate(132%);
-  mix-blend-mode: multiply;
+  opacity: 0.72;
+  filter: blur(10px) saturate(118%);
+  mix-blend-mode: normal;
   pointer-events: none;
 }
 

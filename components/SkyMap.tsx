@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import maplibregl, { type Map, type Marker } from "maplibre-gl";
+import maplibregl, { type Map, type Marker, type StyleSpecification } from "maplibre-gl";
 import SearchBox from "@/components/SearchBox";
 import SkyColorCard from "@/components/SkyColorCard";
 import TimelineGradient from "@/components/TimelineGradient";
@@ -14,6 +14,37 @@ const initialPlace: GeocodeResult = {
   displayName: "Sendai, Miyagi, Japan",
   lat: 38.2682,
   lon: 140.8694,
+};
+
+const baseMapStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    carto: {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+    },
+  },
+  layers: [
+    {
+      id: "carto-light",
+      type: "raster",
+      source: "carto",
+      paint: {
+        "raster-opacity": 0.72,
+        "raster-saturation": -1,
+        "raster-contrast": -0.12,
+        "raster-brightness-min": 0.18,
+        "raster-brightness-max": 0.96,
+      },
+    },
+  ],
 };
 
 export default function SkyMap() {
@@ -177,7 +208,7 @@ export default function SkyMap() {
     if (!mapNode.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: mapNode.current,
-      style: "https://demotiles.maplibre.org/style.json",
+      style: baseMapStyle,
       center: [initialPlace.lon, initialPlace.lat],
       zoom: 4.5,
       attributionControl: false,
