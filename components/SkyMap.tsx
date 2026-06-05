@@ -5,6 +5,7 @@ import maplibregl, { type Map, type Marker } from "maplibre-gl";
 import SearchBox from "@/components/SearchBox";
 import SkyColorCard from "@/components/SkyColorCard";
 import TimelineGradient from "@/components/TimelineGradient";
+import { estimateSkyColor } from "@/lib/skyColor";
 import type { GeocodeResult, SkyColorResult, SkyPoint, TimelinePoint } from "@/types/sky";
 
 const initialPlace: GeocodeResult = {
@@ -17,9 +18,11 @@ const initialPlace: GeocodeResult = {
 
 export default function SkyMap() {
   const mapNode = useRef<HTMLDivElement | null>(null);
+  const skyCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const mapRef = useRef<Map | null>(null);
   const markersRef = useRef<Marker[]>([]);
   const selectedMarkerRef = useRef<Marker | null>(null);
+  const fieldFrameRef = useRef<number | null>(null);
   const [query, setQuery] = useState("Sendai");
   const [results, setResults] = useState<GeocodeResult[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<GeocodeResult>(initialPlace);
@@ -30,6 +33,67 @@ export default function SkyMap() {
   const [gridMode, setGridMode] = useState("cities");
 
   const selectedLngLat = useMemo(() => [selectedPlace.lon, selectedPlace.lat] as [number, number], [selectedPlace]);
+
+  const drawSkyField = useCallback(() => {
+    const map = mapRef.current;
+    const canvas = skyCanvasRef.current;
+    if (!map || !canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scale = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.floor(rect.width));
+    const height = Math.max(1, Math.floor(rect.height));
+    const pixelWidth = Math.max(1, Math.floor(width * scale));
+    const pixelHeight = Math.max(1, Math.floor(height * scale));
+
+    if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.clearRect(0, 0, width, height);
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.68;
+
+    const date = new Date();
+    const cell = Math.max(10, Math.min(22, Math.round(26 - map.getZoom() * 2)));
+    for (let y = -cell; y < height + cell; y += cell) {
+      for (let x = -cell; x < width + cell; x += cell) {
+        const center = map.unproject([x + cell / 2, y + cell / 2]);
+        const color = estimateSkyColor({
+          lat: center.lat,
+          lon: center.lng,
+          date,
+          aod550: 0.08,
+          humidity: 0.5,
+          source: "client-field",
+        });
+        ctx.fillStyle = color.hex;
+        ctx.fillRect(x, y, cell + 1, cell + 1);
+      }
+    }
+
+    const vignette = ctx.createRadialGradient(width * 0.5, height * 0.45, 0, width * 0.5, height * 0.45, Math.max(width, height) * 0.75);
+    vignette.addColorStop(0, "rgba(255,255,255,0.08)");
+    vignette.addColorStop(1, "rgba(10,18,30,0.16)");
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
+  }, []);
+
+  const scheduleSkyField = useCallback(() => {
+    if (fieldFrameRef.current !== null) {
+      cancelAnimationFrame(fieldFrameRef.current);
+    }
+    fieldFrameRef.current = requestAnimationFrame(() => {
+      fieldFrameRef.current = null;
+      drawSkyField();
+    });
+  }, [drawSkyField]);
 
   const loadSky = useCallback(async (place: GeocodeResult) => {
     const [skyResponse, timelineResponse] = await Promise.all([
@@ -120,8 +184,17 @@ export default function SkyMap() {
     });
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
-    map.on("load", refreshGrid);
-    map.on("moveend", refreshGrid);
+    map.on("load", () => {
+      refreshGrid();
+      scheduleSkyField();
+    });
+    map.on("move", scheduleSkyField);
+    map.on("zoom", scheduleSkyField);
+    map.on("resize", scheduleSkyField);
+    map.on("moveend", () => {
+      refreshGrid();
+      scheduleSkyField();
+    });
     map.on("click", (event) => {
       selectPlace({
         id: `map-${event.lngLat.lat}-${event.lngLat.lng}`,
@@ -135,10 +208,23 @@ export default function SkyMap() {
     return () => {
       markersRef.current.forEach((marker) => marker.remove());
       selectedMarkerRef.current?.remove();
+      if (fieldFrameRef.current !== null) {
+        cancelAnimationFrame(fieldFrameRef.current);
+      }
       map.remove();
       mapRef.current = null;
     };
-  }, [refreshGrid, selectPlace]);
+  }, [refreshGrid, scheduleSkyField, selectPlace]);
+
+  useEffect(() => {
+    const onResize = () => scheduleSkyField();
+    window.addEventListener("resize", onResize);
+    const interval = window.setInterval(scheduleSkyField, 5 * 60 * 1000);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.clearInterval(interval);
+    };
+  }, [scheduleSkyField]);
 
   useEffect(() => {
     loadSky(selectedPlace).catch(() => setStatus("Sky data failed, but the map remains usable."));
@@ -180,10 +266,11 @@ export default function SkyMap() {
   return (
     <main className="appShell">
       <div className="mapLayer" ref={mapNode} aria-label="World sky color map" />
+      <canvas className="skyFieldCanvas" ref={skyCanvasRef} aria-hidden="true" />
       <div className="topBar">
         <div className="brandBlock">
           <p>SkyAtlas</p>
-          <span>{gridMode === "grid" ? "Grid sky points" : "Major city sky points"}</span>
+          <span>{gridMode === "grid" ? "Continuous sky field with grid samples" : "Continuous sky field with city samples"}</span>
         </div>
         <button className="locationButton" type="button" onClick={useCurrentLocation}>Current</button>
       </div>
