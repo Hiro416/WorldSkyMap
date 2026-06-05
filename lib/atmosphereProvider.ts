@@ -7,7 +7,7 @@ export interface AtmosphereProvider {
 }
 
 export class StaticAtmosphereProvider implements AtmosphereProvider {
-  async getAtmosphere() {
+  async getAtmosphere(_lat: number, _lon: number, _date: Date) {
     return {
       aod550: 0.08,
       humidity: 0.5,
@@ -16,4 +16,4 @@ export class StaticAtmosphereProvider implements AtmosphereProvider {
   }
 }
 
-export const atmosphereProvider = new StaticAtmosphereProvider();
+export const atmosphereProvider: AtmosphereProvider = new StaticAtmosphereProvider();
