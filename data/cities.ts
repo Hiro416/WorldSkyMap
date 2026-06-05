@@ -1,0 +1,17 @@
+export const majorCities = [
+  { id: "tokyo", name: "Tokyo", lat: 35.6762, lon: 139.6503 },
+  { id: "sendai", name: "Sendai", lat: 38.2682, lon: 140.8694 },
+  { id: "seoul", name: "Seoul", lat: 37.5665, lon: 126.9780 },
+  { id: "singapore", name: "Singapore", lat: 1.3521, lon: 103.8198 },
+  { id: "sydney", name: "Sydney", lat: -33.8688, lon: 151.2093 },
+  { id: "dubai", name: "Dubai", lat: 25.2048, lon: 55.2708 },
+  { id: "london", name: "London", lat: 51.5072, lon: -0.1276 },
+  { id: "paris", name: "Paris", lat: 48.8566, lon: 2.3522 },
+  { id: "cairo", name: "Cairo", lat: 30.0444, lon: 31.2357 },
+  { id: "new-york", name: "New York", lat: 40.7128, lon: -74.0060 },
+  { id: "mexico-city", name: "Mexico City", lat: 19.4326, lon: -99.1332 },
+  { id: "sao-paulo", name: "Sao Paulo", lat: -23.5558, lon: -46.6396 },
+  { id: "cape-town", name: "Cape Town", lat: -33.9249, lon: 18.4241 },
+  { id: "reykjavik", name: "Reykjavik", lat: 64.1466, lon: -21.9426 },
+  { id: "honolulu", name: "Honolulu", lat: 21.3099, lon: -157.8581 },
+] as const;
